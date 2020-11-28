@@ -4,6 +4,8 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.restassured.builder.ResponseSpecBuilder;
 import io.restassured.http.ContentType;
+import io.restassured.response.Response;
+import io.restassured.response.ResponseBody;
 import io.restassured.specification.RequestSpecification;
 import io.restassured.specification.ResponseSpecification;
 import model.Customer;
@@ -31,9 +33,6 @@ public class CustomerTest {
     private ResponseSpecification responseSpecification;
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
-
-
-    private String currentCustomerId = null;
 
     @Test
     @Order(1)
@@ -78,7 +77,6 @@ public class CustomerTest {
 
 
         given().spec(requestSpecification).
-                contentType(ContentType.JSON).
                 body(customerPayload).post().
                 then().statusCode(201);
     }
@@ -95,23 +93,27 @@ public class CustomerTest {
                 "    \"lastName\": \"Faina\"\n" +
                 "}";
 
-        given().when().contentType(ContentType.JSON)
+        Response response = given().when().contentType(ContentType.JSON)
                 .body(customerPayload).post(URL.toString()).
-                then().statusCode(201);
+                        then().statusCode(201).extract().response();
 
+        ResponseBody body = response.getBody();
+        CustomerResponse customerResponse = body.as(CustomerResponse.class);
+        String currentCustomerId = CustomerUtils.getIDFromURL(customerResponse);
+        System.out.println("A customer with id " + currentCustomerId + " was created");
     }
 
     @Test
     @Order(6)
     public void checkPreviouslyCreatedCustomer() {
-        currentCustomerId = CustomerUtils.getLastCreatedCustomerId();
-        System.out.println("The last customer created had the id " + currentCustomerId);
-        given().when().get(baseUrl + customerEndpoint + currentCustomerId).then()
+        String lastCreatedCustomerId = CustomerUtils.getLastCreatedCustomerId();
+        System.out.println("The last customer created had the id " + lastCreatedCustomerId);
+        given().when().get(baseUrl + customerEndpoint + lastCreatedCustomerId).then()
                 .statusCode(200);
 
         CustomerResponse customerResponse = given().
                 when().
-                get(baseUrl + customerEndpoint + currentCustomerId).
+                get(baseUrl + customerEndpoint + lastCreatedCustomerId).
                 as(CustomerResponse.class);
         assertEquals(customerResponse.getFirstName(), "Cristian");
         assertEquals(customerResponse.getLastName(), "Faina");
@@ -120,10 +122,12 @@ public class CustomerTest {
     @Test
     @Order(7)
     public void updatePreviouslyCreatedCustomer() {
+        String lastCreatedCustomerId = CustomerUtils.getLastCreatedCustomerId();
         Customer updatedCustomer = new Customer();
         updatedCustomer.setFirstName("Robert");
         updatedCustomer.setLastName("De Niro");
         String updatedDataPayload = null;
+
         try {
             updatedDataPayload = MAPPER.writeValueAsString(updatedCustomer);
         } catch (JsonProcessingException e) {
@@ -131,20 +135,21 @@ public class CustomerTest {
         }
         given().when().contentType("application/json")
                 .body(updatedDataPayload).
-                put(baseUrl + customerEndpoint + currentCustomerId).
+                put(baseUrl + customerEndpoint + lastCreatedCustomerId).
                 then().statusCode(200);
     }
 
     @Test
     @Order(8)
     public void checkPreviouslyUpdatedCustomer() {
-        System.out.println("The last customer created had the id " + currentCustomerId);
-        given().when().get(baseUrl + customerEndpoint + currentCustomerId).then()
+        String lastCreatedCustomerId = CustomerUtils.getLastCreatedCustomerId();
+        System.out.println("The last customer created had the id " + lastCreatedCustomerId);
+        given().when().get(baseUrl + customerEndpoint + lastCreatedCustomerId).then()
                 .statusCode(200);
 
         CustomerResponse customerResponse = given().
                 when().
-                get(baseUrl + customerEndpoint + currentCustomerId).
+                get(baseUrl + customerEndpoint + lastCreatedCustomerId).
                 as(CustomerResponse.class);
         assertEquals(customerResponse.getFirstName(), "Robert");
         assertEquals(customerResponse.getLastName(), "De Niro");
@@ -153,20 +158,17 @@ public class CustomerTest {
     @Test
     @Order(9)
     public void deleteCustomerTest() {
+        String lastCreatedCustomerId = CustomerUtils.getLastCreatedCustomerId();
         System.out.println("The customer with the id " +
-                currentCustomerId + " will be deleted");
+                lastCreatedCustomerId + " will be deleted");
         given().when().
-                delete(baseUrl + customerEndpoint + currentCustomerId).
+                delete(baseUrl + customerEndpoint + lastCreatedCustomerId).
                 then().statusCode(200);
-    }
 
-    @Test
-    @Order(10)
-    public void checkDeletedCustomerTest() {
         given().when().
-                get(baseUrl + customerEndpoint + currentCustomerId).
+                get(baseUrl + customerEndpoint + lastCreatedCustomerId).
                 then().statusCode(404);
         System.out.println("The customer with the id " +
-                currentCustomerId + " was deleted");
+                lastCreatedCustomerId + " was deleted");
     }
 }

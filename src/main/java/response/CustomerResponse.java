@@ -5,16 +5,13 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import model.Customer;
 
 @AllArgsConstructor
 @NoArgsConstructor
 @Setter
 @Getter
-public class CustomerResponse {
-    @JsonProperty("lastName")
-    private String lastName;
-    @JsonProperty("firstName")
-    private String firstName;
+public class CustomerResponse extends Customer {
     @JsonProperty("customerUrl")
     private String customerUrl;
 }
